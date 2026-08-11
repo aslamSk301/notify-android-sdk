@@ -1,7 +1,12 @@
 plugins {
     alias(libs.plugins.android.library)
     alias(libs.plugins.kotlin.android)
+    id("maven-publish")
 }
+
+group = "com.github.aslamSk301"
+version = "1.1.0"
+
 
 android {
     namespace   = "com.notifymvp.sdk"
