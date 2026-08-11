@@ -1,19 +1,18 @@
 plugins {
-    alias(libs.plugins.android.library)
-    alias(libs.plugins.kotlin.android)
+    id("com.android.library")         version "8.5.0"
+    id("org.jetbrains.kotlin.android") version "2.0.0"
     id("maven-publish")
 }
 
-group = "com.github.aslamSk301"
-version = "1.1.0"
-
+group   = "com.github.aslamSk301"
+version = "1.1.1"
 
 android {
     namespace   = "com.notifymvp.sdk"
     compileSdk  = 35
 
     defaultConfig {
-        minSdk  = 21
+        minSdk = 21
         consumerProguardFiles("consumer-rules.pro")
     }
 
@@ -28,20 +27,20 @@ android {
 
 dependencies {
     // Coroutines
-    implementation(libs.kotlinx.coroutines.android)
-    implementation(libs.kotlinx.coroutines.play.services)
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.8.1")
 
     // Networking
-    implementation(libs.okhttp)
-    implementation(libs.okhttp.logging)
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
 
     // Firebase Messaging (compileOnly — host app provides it)
-    compileOnly(platform(libs.firebase.bom))
-    compileOnly(libs.firebase.messaging.ktx)
+    compileOnly(platform("com.google.firebase:firebase-bom:33.1.0"))
+    compileOnly("com.google.firebase:firebase-messaging-ktx")
 
     // Encrypted storage for deviceId
-    implementation(libs.androidx.security.crypto)
+    implementation("androidx.security:security-crypto:1.1.0-alpha06")
 
     // Core AndroidX
-    implementation(libs.androidx.core.ktx)
+    implementation("androidx.core:core-ktx:1.13.1")
 }
