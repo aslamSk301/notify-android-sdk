@@ -6,35 +6,44 @@ Official Android SDK for NotifyMVP. Uses Kotlin Coroutines + OkHttp.
 
 ## Installation
 
-### 1. Add to `settings.gradle.kts`
+### Option A — JitPack (Recommended)
+
+**Step 1:** Add JitPack to your root `settings.gradle.kts`
 ```kotlin
-// If using as a local module
-include(":notifymvp")
-project(":notifymvp").projectDir = File("../notify_android_sdk/notifymvp")
+dependencyResolutionManagement {
+    repositories {
+        google()
+        mavenCentral()
+        maven { url = uri("https://jitpack.io") }  // ← add this
+    }
+}
 ```
 
-### 2. Add dependency in `app/build.gradle.kts`
+**Step 2:** Add the SDK dependency in `app/build.gradle.kts`
 ```kotlin
 dependencies {
-    implementation(project(":notifymvp"))
+    implementation("com.github.aslamSk301:notify-android-sdk:1.1.0")
     // Firebase (required)
     implementation(platform("com.google.firebase:firebase-bom:33.1.0"))
     implementation("com.google.firebase:firebase-messaging-ktx")
 }
 ```
 
-### 3. Add `google-services.json`
-Download from Firebase Console → place in `app/` folder.
+---
 
-### 4. Apply Google Services plugin
+### Option B — Local Module
+
 ```kotlin
+// settings.gradle.kts
+include(":notifymvp")
+project(":notifymvp").projectDir = File("../notify_android_sdk/notifymvp")
+
 // app/build.gradle.kts
-plugins {
-    id("com.google.gms.google-services")
+dependencies {
+    implementation(project(":notifymvp"))
 }
 ```
 
-### 5. Register FCM Service in `AndroidManifest.xml`
 ```xml
 <service
     android:name="com.notifymvp.sdk.NotifyMvpMessagingService"
