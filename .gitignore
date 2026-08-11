@@ -1,0 +1,24 @@
+# Built output
+build/
+.gradle/
+*.class
+*.aar
+*.apk
+
+# Local config
+local.properties
+*.keystore
+*.jks
+
+# Android Studio / IntelliJ
+.idea/
+*.iml
+.DS_Store
+captures/
+
+# Gradle cache
+.gradle/
+gradle.properties.local
+
+# Test output
+test-results/

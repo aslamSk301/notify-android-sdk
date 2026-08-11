@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp"
+    android:background="#0F0F11"
+    tools:context=".MainActivity">
+
+    <!-- Header -->
+    <com.google.android.material.textview.MaterialTextView
+        android:id="@+id/tvHeading"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="NotifyMVP Demo"
+        android:textColor="#F4F4F5"
+        android:textSize="20sp"
+        android:textStyle="bold"
+        android:layout_marginBottom="16dp" />
+
+    <!-- Status card -->
+    <com.google.android.material.card.MaterialCardView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="12dp"
+        app:cardBackgroundColor="#18181B"
+        app:strokeColor="#27272A"
+        app:strokeWidth="1dp"
+        app:cardCornerRadius="12dp"
+        xmlns:app="http://schemas.android.com/apk/res-auto">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="14dp">
+
+            <com.google.android.material.textview.MaterialTextView
+                android:id="@+id/tvStatus"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textColor="#10B981"
+                android:textStyle="bold"
+                android:layout_marginBottom="10dp"
+                tools:text="Registered ✓" />
+
+            <com.google.android.material.textview.MaterialTextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="FCM Token"
+                android:textColor="#71717A"
+                android:textSize="11sp" />
+
+            <com.google.android.material.textview.MaterialTextView
+                android:id="@+id/tvToken"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textColor="#6366F1"
+                android:textSize="11sp"
+                android:fontFamily="monospace"
+                android:layout_marginBottom="6dp"
+                tools:text="fXy3k8mN…abc12345" />
+
+            <com.google.android.material.textview.MaterialTextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="App ID"
+                android:textColor="#71717A"
+                android:textSize="11sp" />
+
+            <com.google.android.material.textview.MaterialTextView
+                android:id="@+id/tvAppId"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textColor="#6366F1"
+                android:textSize="11sp"
+                android:fontFamily="monospace"
+                tools:text="app_e1eba64d" />
+
+        </LinearLayout>
+    </com.google.android.material.card.MaterialCardView>
+
+    <!-- Re-register button -->
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btnReRegister"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Re-register Device"
+        android:layout_marginBottom="20dp"
+        app:backgroundTint="#6366F1"
+        xmlns:app="http://schemas.android.com/apk/res-auto" />
+
+    <!-- Section label -->
+    <com.google.android.material.textview.MaterialTextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="RECEIVED NOTIFICATIONS"
+        android:textColor="#71717A"
+        android:textSize="11sp"
+        android:letterSpacing="0.1"
+        android:textStyle="bold"
+        android:layout_marginBottom="8dp" />
+
+    <!-- Notification list -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/recyclerView"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1" />
+
+</LinearLayout>
