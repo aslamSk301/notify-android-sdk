@@ -42,6 +42,7 @@ object NotifyMVP {
     @Volatile private var _initialized = false
     @Volatile private var _optedIn = true
     @Volatile private var _permissionStatus = "unknown"
+    @Volatile private var _externalUserId: String? = null
 
     // Internal — accessed by NotifyMvpMessagingService
     internal val loggerInternal: NotifyLogger? get() = logger
@@ -61,12 +62,24 @@ object NotifyMVP {
 
     val isOptedIn: Boolean get() = _optedIn
     val permissionStatus: String get() = _permissionStatus
+    val externalUserId: String? get() = _externalUserId
     val subscriptionStatus: String
         get() {
             val tokenOk = !_fcmToken.isNullOrBlank()
             val permOk = _permissionStatus == "granted" || _permissionStatus == "provisional"
             return if (tokenOk && permOk && _optedIn) "subscribed" else "unsubscribed"
         }
+
+    /**
+     * Link an external user ID (e.g. Firebase Auth UID, User Database ID) to this device subscription.
+     * Allows sending targeted notifications to this user via `user:{userId}` target in the dashboard/API.
+     */
+    suspend fun setExternalUserId(externalUserId: String?): NotifyResult {
+        checkInitialized()
+        _externalUserId = externalUserId
+        logger?.info("External User ID set: $externalUserId")
+        return registerDevice()
+    }
 
     /**
      * Initialize the SDK and register this device.
@@ -319,6 +332,7 @@ object NotifyMVP {
             appVersion = info.getAppVersion(),
             permissionStatus = _permissionStatus,
             optedIn = _optedIn,
+            externalUserId = _externalUserId,
         )
     }
 

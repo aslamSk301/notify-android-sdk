@@ -50,6 +50,7 @@ internal class NotifyHttpClient(
         appVersion: String,
         permissionStatus: String = "unknown",
         optedIn: Boolean = true,
+        externalUserId: String? = null,
     ) {
         val body = JSONObject().apply {
             put("appId", appId)
@@ -60,6 +61,7 @@ internal class NotifyHttpClient(
             put("permissionStatus", permissionStatus)
             put("optedIn", optedIn)
             if (!fcmToken.isNullOrBlank()) put("fcmToken", fcmToken)
+            if (!externalUserId.isNullOrBlank()) put("externalUserId", externalUserId)
         }.toString()
 
         postWithRetry(config.registerEndpoint, body, "registerDevice")
