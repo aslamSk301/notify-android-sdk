@@ -46,6 +46,14 @@ internal class DeviceInfoService(context: Context) {
     fun getOsVersion(): String =
         "Android ${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT})"
 
+    fun getLanguage(): String = try {
+        java.util.Locale.getDefault().language
+    } catch (_: Exception) { "en" }
+
+    fun getTimezone(): String = try {
+        java.util.TimeZone.getDefault().id
+    } catch (_: Exception) { "UTC" }
+
     // ── Internal ──────────────────────────────────────────────────────────────
 
     private fun buildEncryptedPrefs(): android.content.SharedPreferences {

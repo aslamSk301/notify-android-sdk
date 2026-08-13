@@ -48,6 +48,11 @@ internal class NotifyHttpClient(
         platform: String,
         deviceId: String,
         appVersion: String,
+        deviceModel: String? = null,
+        deviceOs: String? = null,
+        language: String? = null,
+        timezone: String? = null,
+        sdkVersion: String? = "1.1.0",
         permissionStatus: String = "unknown",
         optedIn: Boolean = true,
         externalUserId: String? = null,
@@ -62,6 +67,11 @@ internal class NotifyHttpClient(
             put("optedIn", optedIn)
             if (!fcmToken.isNullOrBlank()) put("fcmToken", fcmToken)
             if (!externalUserId.isNullOrBlank()) put("externalUserId", externalUserId)
+            if (!deviceModel.isNullOrBlank()) put("deviceModel", deviceModel)
+            if (!deviceOs.isNullOrBlank()) put("deviceOs", deviceOs)
+            if (!language.isNullOrBlank()) put("language", language)
+            if (!timezone.isNullOrBlank()) put("timezone", timezone)
+            if (!sdkVersion.isNullOrBlank()) put("sdkVersion", sdkVersion)
         }.toString()
 
         postWithRetry(config.registerEndpoint, body, "registerDevice")
