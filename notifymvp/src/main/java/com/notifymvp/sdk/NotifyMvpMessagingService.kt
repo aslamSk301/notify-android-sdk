@@ -60,14 +60,89 @@ class NotifyMvpMessagingService : FirebaseMessagingService() {
     override fun onMessageReceived(remoteMessage: RemoteMessage) {
         super.onMessageReceived(remoteMessage)
 
-        val title = remoteMessage.notification?.title ?: return
-        val body  = remoteMessage.notification?.body  ?: ""
+        val notif = remoteMessage.notification
         val data  = remoteMessage.data
+
+        val title = notif?.title ?: data["title"] ?: data["name"] ?: ""
+        val body  = notif?.body  ?: data["body"]  ?: data["message"] ?: ""
 
         NotifyMVP.loggerInternal?.debug("Foreground message: $title")
 
         // Deliver to app-level listener (set via NotifyMVP.setMessageListener)
         NotifyMVP.messageListenerInternal?.onMessage(title, body, data)
+
+        // Show system heads-up notification (high-priority pop-up)
+        if (title.isNotBlank()) {
+            showSystemHeadsUpNotification(title, body, data)
+        }
+    }
+
+    private fun showSystemHeadsUpNotification(title: String, body: String, data: Map<String, String>) {
+        try {
+            val notificationManager =
+                getSystemService(android.content.Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
+
+            val channelId = "notifymvp_heads_up_v4"
+
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                val soundUri = android.media.RingtoneManager.getDefaultUri(android.media.RingtoneManager.TYPE_NOTIFICATION)
+                val audioAttributes = android.media.AudioAttributes.Builder()
+                    .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                    .setUsage(android.media.AudioAttributes.USAGE_NOTIFICATION)
+                    .build()
+
+                val channel = android.app.NotificationChannel(
+                    channelId,
+                    "NotifyMVP Push Notifications",
+                    android.app.NotificationManager.IMPORTANCE_HIGH
+                ).apply {
+                    description = "High priority push notifications"
+                    enableLights(true)
+                    enableVibration(true)
+                    vibrationPattern = longArrayOf(0, 250, 250, 250)
+                    setSound(soundUri, audioAttributes)
+                    setShowBadge(true)
+                }
+                notificationManager.createNotificationChannel(channel)
+            }
+
+            val launchUrl = data["url"] ?: data["link"] ?: data["storyId"]
+            val intent = packageManager.getLaunchIntentForPackage(packageName)?.apply {
+                flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP
+                if (!launchUrl.isNullOrBlank()) {
+                    putExtra("url", launchUrl)
+                    putExtra("storyId", launchUrl)
+                }
+            }
+
+            val notifId = (System.currentTimeMillis() and 0x7FFFFFFF).toInt()
+            val pendingIntent = if (intent != null) {
+                android.app.PendingIntent.getActivity(
+                    this,
+                    notifId,
+                    intent,
+                    android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE
+                )
+            } else null
+
+            val soundUri = android.media.RingtoneManager.getDefaultUri(android.media.RingtoneManager.TYPE_NOTIFICATION)
+            val notif = androidx.core.app.NotificationCompat.Builder(this, channelId)
+                .setSmallIcon(android.R.drawable.ic_popup_reminder)
+                .setContentTitle(title)
+                .setContentText(body)
+                .setAutoCancel(true)
+                .setPriority(androidx.core.app.NotificationCompat.PRIORITY_MAX)
+                .setCategory(androidx.core.app.NotificationCompat.CATEGORY_MESSAGE)
+                .setDefaults(androidx.core.app.NotificationCompat.DEFAULT_ALL)
+                .setSound(soundUri)
+                .setVibrate(longArrayOf(0, 250, 250, 250))
+                .apply { if (pendingIntent != null) setContentIntent(pendingIntent) }
+                .build()
+
+            notificationManager.notify(notifId, notif)
+        } catch (e: Exception) {
+            NotifyMVP.loggerInternal?.error("Failed to post heads-up notification", e)
+        }
     }
 
     override fun onDestroy() {
