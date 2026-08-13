@@ -49,16 +49,20 @@ internal class DeviceInfoService(context: Context) {
     // ── Internal ──────────────────────────────────────────────────────────────
 
     private fun buildEncryptedPrefs(): android.content.SharedPreferences {
-        val masterKey = MasterKey.Builder(appContext)
-            .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
-            .build()
+        return try {
+            val masterKey = MasterKey.Builder(appContext)
+                .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+                .build()
 
-        return EncryptedSharedPreferences.create(
-            appContext,
-            PREFS_FILE,
-            masterKey,
-            EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
-            EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM,
-        )
+            EncryptedSharedPreferences.create(
+                appContext,
+                PREFS_FILE,
+                masterKey,
+                EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+                EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM,
+            )
+        } catch (_: Exception) {
+            appContext.getSharedPreferences(PREFS_FILE, Context.MODE_PRIVATE)
+        }
     }
 }

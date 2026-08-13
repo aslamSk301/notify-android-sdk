@@ -132,7 +132,7 @@ internal class NotifyHttpClient(
         url: String,
         jsonBody: String,
         operation: String,
-    ): JSONObject {
+    ): JSONObject = withContext(Dispatchers.IO) {
         var attempt = 0
         var lastException: Exception? = null
 
@@ -141,7 +141,7 @@ internal class NotifyHttpClient(
             logger.debug("$operation attempt $attempt → $url")
 
             try {
-                return execute(url, jsonBody, operation)
+                return@withContext execute(url, jsonBody, operation)
             } catch (e: NotifyException) {
                 lastException = e
                 // Auth errors and 4xx (except 429) are not retryable
