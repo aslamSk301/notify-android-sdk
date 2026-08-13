@@ -277,23 +277,23 @@ object NotifyMVP {
         return try {
             _permissionStatus = readPermissionStatus()
             var token: String? = null
-            if (_permissionStatus == "granted" || _permissionStatus == "provisional") {
-                try {
-                    token = getFcmToken()
+            try {
+                token = getFcmToken()
+                if (!token.isNullOrBlank()) {
                     _fcmToken = token
                     logger?.debug("FCM token: …${token.takeLast(8)}")
-                } catch (e: Exception) {
-                    logger?.warn("FCM token unavailable: ${e.message}")
                 }
+            } catch (e: Exception) {
+                logger?.warn("FCM token unavailable: ${e.message}")
             }
 
-            registerWithBackend(token)
+            registerWithBackend(_fcmToken ?: token)
 
             val devId = deviceInfo!!.getDeviceId()
             val ver   = deviceInfo!!.getAppVersion()
             val plat  = deviceInfo!!.getPlatform()
 
-            logger?.info("Device registered ✓  deviceId=$devId status=$subscriptionStatus")
+            logger?.info("Device registered ✓  deviceId=$devId status=$subscriptionStatus permission=$_permissionStatus")
             NotifyResult.Success(deviceId = devId, platform = plat, appVersion = ver)
         } catch (e: NotifyException) {
             logger?.error("Registration failed: ${e.message}")
