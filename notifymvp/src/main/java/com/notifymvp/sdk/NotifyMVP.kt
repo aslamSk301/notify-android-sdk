@@ -75,8 +75,11 @@ object NotifyMVP {
      * Allows sending targeted notifications to this user via `user:{userId}` target in the dashboard/API.
      */
     suspend fun setExternalUserId(externalUserId: String?): NotifyResult {
-        checkInitialized()
         _externalUserId = externalUserId
+        if (!_initialized) {
+            logger?.warn("NotifyMVP is not initialized yet. External User ID stored ($externalUserId) and will be registered upon initialize.")
+            return NotifyResult.Failure("NotifyMVP is not initialized.")
+        }
         logger?.info("External User ID set: $externalUserId")
         return registerDevice()
     }
@@ -99,6 +102,9 @@ object NotifyMVP {
         this.deviceInfo = DeviceInfoService(appCtx)
         this._initialized = true
 
+        // Register high-priority notification channel immediately (critical for Android 8.0+ / API 26+)
+        NotifyMvpMessagingService.createNotificationChannel(appCtx)
+
         logger!!.info("NotifyMVP SDK v1.1.0 initialized. appId=${config.appId}")
 
         return if (autoRegister) registerDevice() else NotifyResult.Success()
@@ -106,27 +112,27 @@ object NotifyMVP {
 
     /** Manually register / re-register this device. */
     suspend fun register(): NotifyResult {
-        checkInitialized()
+        if (!_initialized) return NotifyResult.Failure("NotifyMVP is not initialized.")
         return registerDevice()
     }
 
     /** OneSignal-style: user wants pushes again. */
     suspend fun optIn(): NotifyResult {
-        checkInitialized()
+        if (!_initialized) return NotifyResult.Failure("NotifyMVP is not initialized.")
         _optedIn = true
         return registerDevice()
     }
 
     /** OneSignal-style: stop receiving pushes without deleting the device record. */
     suspend fun optOut(): NotifyResult {
-        checkInitialized()
+        if (!_initialized) return NotifyResult.Failure("NotifyMVP is not initialized.")
         _optedIn = false
         return registerWithBackendResult()
     }
 
     /** Re-read OS permission + re-register (call on app resume). */
     suspend fun syncSubscription(): NotifyResult {
-        checkInitialized()
+        if (!_initialized) return NotifyResult.Failure("NotifyMVP is not initialized.")
         return registerDevice()
     }
 
@@ -153,29 +159,37 @@ object NotifyMVP {
      */
     fun handleIntent(intent: Intent?, openHttpInBrowser: Boolean = true): Boolean {
         if (intent == null) return false
-        val extras = intent.extras ?: return false
+        val extras = intent.extras
+        val dataUri = intent.dataString
 
         val data = mutableMapOf<String, String>()
-        for (key in extras.keySet()) {
-            val value = extras.get(key)?.toString() ?: continue
-            if (key.startsWith("google.") || key == "from" || key == "collapse_key") continue
-            data[key] = value
+        if (extras != null) {
+            for (key in extras.keySet()) {
+                val value = extras.get(key)?.toString() ?: continue
+                if (key.startsWith("google.") || key == "from" || key == "collapse_key") continue
+                data[key] = value
+            }
         }
 
-        val url = data["url"]?.takeIf { it.isNotBlank() }
+        val url = data["url"] ?: data["link"] ?: data["storyId"] ?: dataUri?.takeIf { it.isNotBlank() }
         val title = data["gcm.notification.title"] ?: data["title"] ?: ""
         val body  = data["gcm.notification.body"]  ?: data["body"]  ?: ""
 
-        val looksLikeNotif = url != null ||
-            extras.containsKey("google.message_id") ||
-            extras.containsKey("google.sent_time")
+        val looksLikeNotif = !url.isNullOrBlank() ||
+            (extras != null && (extras.containsKey("google.message_id") || extras.containsKey("google.sent_time")))
 
         if (!looksLikeNotif) return false
 
         logger?.debug("Notification opened — url=$url title=$title")
         openedListenerInternal?.onOpened(title, body, url, data)
 
-        if (openHttpInBrowser && !url.isNullOrBlank() &&
+        val isAppDeepLink = !url.isNullOrBlank() && (
+            (url.contains("://") && !url.startsWith("http://") && !url.startsWith("https://")) ||
+            url.contains("storycean.com") ||
+            data.containsKey("storyId")
+        )
+
+        if (openHttpInBrowser && !url.isNullOrBlank() && !isAppDeepLink &&
             (url.startsWith("http://") || url.startsWith("https://"))
         ) {
             try {
@@ -334,6 +348,7 @@ object NotifyMVP {
             deviceOs = info.getOsVersion(),
             language = info.getLanguage(),
             timezone = info.getTimezone(),
+            country = info.getCountry().ifBlank { null },
             sdkVersion = "1.1.0",
             permissionStatus = _permissionStatus,
             optedIn = _optedIn,
@@ -367,10 +382,11 @@ object NotifyMVP {
                 }
         }
 
-    private fun checkInitialized() {
-        if (!_initialized) throw NotifyException(
-            "NotifyMVP is not initialized. Call NotifyMVP.initialize() first.",
-            code = NotifyException.Code.NOT_INITIALIZED,
-        )
+    private fun checkInitialized(): Boolean {
+        if (!_initialized) {
+            logger?.warn("NotifyMVP is not initialized yet.")
+            return false
+        }
+        return true
     }
 }

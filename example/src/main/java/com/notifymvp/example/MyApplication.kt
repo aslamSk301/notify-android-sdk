@@ -24,7 +24,7 @@ class MyApplication : Application() {
                 config  = NotifyConfig(
                     appId        = "app_e1eba64d4fdbd13c",      // ← your App ID
                     apiKey       = "60e84f652dcb2ad016edba27fdd91af26005750d8d9ddad30134a5fa9e6ef702", // ← your API Key
-                    baseUrl      = "https://notyfy.vercel.app",
+                    baseUrl      = "https://your-worker.workers.dev", // your Cloudflare Worker URL
                     debugLogging = BuildConfig.DEBUG,
                 ),
             )

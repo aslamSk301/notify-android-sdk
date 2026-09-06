@@ -56,6 +56,19 @@ dependencies {
 
 ---
 
+## `baseUrl`
+
+`baseUrl` is **your** NotifyMVP Cloudflare Worker URL — not a shared hosted API.
+
+After `npm run deploy` in `my-app/`, Wrangler prints it, for example:
+
+- `https://notifymvp.<your-account>.workers.dev`
+- or your custom domain: `https://notify.yourdomain.com`
+
+No trailing slash. `appId` and `apiKey` still come from **your** dashboard → Projects.
+
+---
+
 ## Usage
 
 ### `Application.onCreate()` — initialize once
@@ -72,7 +85,7 @@ class MyApp : Application() {
                 config  = NotifyConfig(
                     appId        = "app_xxxxxxxx",           // Dashboard → App ID
                     apiKey       = "your_api_key",           // Dashboard → API Key
-                    baseUrl      = "https://notyfy.vercel.app",
+                    baseUrl      = "https://your-worker.workers.dev", // your Worker / custom domain
                     debugLogging = BuildConfig.DEBUG,
                 )
             )

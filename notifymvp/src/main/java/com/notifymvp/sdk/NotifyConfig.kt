@@ -5,7 +5,7 @@ package com.notifymvp.sdk
  *
  * @param appId        Your project App ID — from NotifyMVP dashboard → Projects
  * @param apiKey       Your project API Key — from NotifyMVP dashboard → Projects
- * @param baseUrl      Base URL of your NotifyMVP deployment (no trailing slash)
+ * @param baseUrl      Your Cloudflare Worker URL (no trailing slash), e.g. https://your-worker.workers.dev
  * @param debugLogging Enable verbose console logs (disable in production)
  * @param timeoutMs    HTTP request timeout in milliseconds
  * @param maxRetries   Number of retry attempts on transient failure

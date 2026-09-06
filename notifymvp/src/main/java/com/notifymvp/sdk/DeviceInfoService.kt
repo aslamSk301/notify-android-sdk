@@ -23,12 +23,28 @@ internal class DeviceInfoService(context: Context) {
      * A fresh UUID is generated on first install (or after app data clear).
      */
     fun getDeviceId(): String {
+        val plainPrefs = appContext.getSharedPreferences(PREFS_FILE, Context.MODE_PRIVATE)
+        val plainId = plainPrefs.getString(KEY_DEVICE_ID, null)
+
         val prefs = buildEncryptedPrefs()
-        val existing = prefs.getString(KEY_DEVICE_ID, null)
+        val existing = try {
+            prefs.getString(KEY_DEVICE_ID, null)
+        } catch (_: Exception) {
+            null
+        }
+
         if (!existing.isNullOrBlank()) return existing
+        if (!plainId.isNullOrBlank()) {
+            try { prefs.edit().putString(KEY_DEVICE_ID, plainId).apply() } catch (_: Exception) {}
+            return plainId
+        }
 
         val newId = UUID.randomUUID().toString()
-        prefs.edit().putString(KEY_DEVICE_ID, newId).apply()
+        try {
+            prefs.edit().putString(KEY_DEVICE_ID, newId).apply()
+        } catch (_: Exception) {
+            plainPrefs.edit().putString(KEY_DEVICE_ID, newId).apply()
+        }
         return newId
     }
 
@@ -50,6 +66,10 @@ internal class DeviceInfoService(context: Context) {
         java.util.Locale.getDefault().language
     } catch (_: Exception) { "en" }
 
+    fun getCountry(): String = try {
+        java.util.Locale.getDefault().country ?: ""
+    } catch (_: Exception) { "" }
+
     fun getTimezone(): String = try {
         java.util.TimeZone.getDefault().id
     } catch (_: Exception) { "UTC" }
@@ -58,17 +78,21 @@ internal class DeviceInfoService(context: Context) {
 
     private fun buildEncryptedPrefs(): android.content.SharedPreferences {
         return try {
-            val masterKey = MasterKey.Builder(appContext)
-                .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
-                .build()
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                val masterKey = MasterKey.Builder(appContext)
+                    .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+                    .build()
 
-            EncryptedSharedPreferences.create(
-                appContext,
-                PREFS_FILE,
-                masterKey,
-                EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
-                EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM,
-            )
+                EncryptedSharedPreferences.create(
+                    appContext,
+                    PREFS_FILE,
+                    masterKey,
+                    EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+                    EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM,
+                )
+            } else {
+                appContext.getSharedPreferences(PREFS_FILE, Context.MODE_PRIVATE)
+            }
         } catch (_: Exception) {
             appContext.getSharedPreferences(PREFS_FILE, Context.MODE_PRIVATE)
         }

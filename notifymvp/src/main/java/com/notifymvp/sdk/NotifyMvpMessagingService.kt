@@ -82,36 +82,23 @@ class NotifyMvpMessagingService : FirebaseMessagingService() {
             val notificationManager =
                 getSystemService(android.content.Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
 
-            val channelId = "notifymvp_heads_up_v4"
-
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-                val soundUri = android.media.RingtoneManager.getDefaultUri(android.media.RingtoneManager.TYPE_NOTIFICATION)
-                val audioAttributes = android.media.AudioAttributes.Builder()
-                    .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                    .setUsage(android.media.AudioAttributes.USAGE_NOTIFICATION)
-                    .build()
-
-                val channel = android.app.NotificationChannel(
-                    channelId,
-                    "NotifyMVP Push Notifications",
-                    android.app.NotificationManager.IMPORTANCE_HIGH
-                ).apply {
-                    description = "High priority push notifications"
-                    enableLights(true)
-                    enableVibration(true)
-                    vibrationPattern = longArrayOf(0, 250, 250, 250)
-                    setSound(soundUri, audioAttributes)
-                    setShowBadge(true)
-                }
-                notificationManager.createNotificationChannel(channel)
-            }
+            val channelId = DEFAULT_CHANNEL_ID
+            createNotificationChannel(this, channelId)
 
             val launchUrl = data["url"] ?: data["link"] ?: data["storyId"]
             val intent = packageManager.getLaunchIntentForPackage(packageName)?.apply {
                 flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP
+                for ((k, v) in data) {
+                    putExtra(k, v)
+                }
                 if (!launchUrl.isNullOrBlank()) {
                     putExtra("url", launchUrl)
                     putExtra("storyId", launchUrl)
+                    if (launchUrl.startsWith("storycean://")) {
+                        try {
+                            setData(android.net.Uri.parse(launchUrl))
+                        } catch (_: Exception) {}
+                    }
                 }
             }
 
@@ -126,22 +113,76 @@ class NotifyMvpMessagingService : FirebaseMessagingService() {
             } else null
 
             val soundUri = android.media.RingtoneManager.getDefaultUri(android.media.RingtoneManager.TYPE_NOTIFICATION)
+            val iconRes = resolveSmallIconRes()
+
             val notif = androidx.core.app.NotificationCompat.Builder(this, channelId)
-                .setSmallIcon(android.R.drawable.ic_popup_reminder)
+                .setSmallIcon(iconRes)
                 .setContentTitle(title)
                 .setContentText(body)
+                .setStyle(androidx.core.app.NotificationCompat.BigTextStyle().bigText(body))
                 .setAutoCancel(true)
                 .setPriority(androidx.core.app.NotificationCompat.PRIORITY_MAX)
                 .setCategory(androidx.core.app.NotificationCompat.CATEGORY_MESSAGE)
                 .setDefaults(androidx.core.app.NotificationCompat.DEFAULT_ALL)
                 .setSound(soundUri)
                 .setVibrate(longArrayOf(0, 250, 250, 250))
+                .setVisibility(androidx.core.app.NotificationCompat.VISIBILITY_PUBLIC)
                 .apply { if (pendingIntent != null) setContentIntent(pendingIntent) }
                 .build()
 
             notificationManager.notify(notifId, notif)
         } catch (e: Exception) {
             NotifyMVP.loggerInternal?.error("Failed to post heads-up notification", e)
+        }
+    }
+
+    private fun resolveSmallIconRes(): Int {
+        return try {
+            val appIcon = packageManager.getApplicationInfo(packageName, 0).icon
+            if (appIcon != 0) appIcon else android.R.drawable.ic_popup_reminder
+        } catch (_: Exception) {
+            android.R.drawable.ic_popup_reminder
+        }
+    }
+
+    companion object {
+        const val DEFAULT_CHANNEL_ID = "notifymvp_heads_up_v4"
+
+        /**
+         * Ensures high-priority NotificationChannel exists on Android 8.0+ (API 26+).
+         * Call eagerly on SDK initialization so background pushes are never dropped by OS.
+         */
+        fun createNotificationChannel(context: android.content.Context, channelId: String = DEFAULT_CHANNEL_ID) {
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                try {
+                    val notificationManager =
+                        context.getSystemService(android.content.Context.NOTIFICATION_SERVICE) as? android.app.NotificationManager
+                            ?: return
+
+                    val soundUri = android.media.RingtoneManager.getDefaultUri(android.media.RingtoneManager.TYPE_NOTIFICATION)
+                    val audioAttributes = android.media.AudioAttributes.Builder()
+                        .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                        .setUsage(android.media.AudioAttributes.USAGE_NOTIFICATION)
+                        .build()
+
+                    val channel = android.app.NotificationChannel(
+                        channelId,
+                        "NotifyMVP Push Notifications",
+                        android.app.NotificationManager.IMPORTANCE_HIGH
+                    ).apply {
+                        description = "High priority push notifications"
+                        enableLights(true)
+                        enableVibration(true)
+                        vibrationPattern = longArrayOf(0, 250, 250, 250)
+                        setSound(soundUri, audioAttributes)
+                        setShowBadge(true)
+                        lockscreenVisibility = android.app.Notification.VISIBILITY_PUBLIC
+                    }
+                    notificationManager.createNotificationChannel(channel)
+                } catch (e: Exception) {
+                    NotifyMVP.loggerInternal?.error("Failed to create notification channel", e)
+                }
+            }
         }
     }
 

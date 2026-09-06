@@ -52,6 +52,7 @@ internal class NotifyHttpClient(
         deviceOs: String? = null,
         language: String? = null,
         timezone: String? = null,
+        country: String? = null,
         sdkVersion: String? = "1.1.0",
         permissionStatus: String = "unknown",
         optedIn: Boolean = true,
@@ -71,6 +72,7 @@ internal class NotifyHttpClient(
             if (!deviceOs.isNullOrBlank()) put("deviceOs", deviceOs)
             if (!language.isNullOrBlank()) put("language", language)
             if (!timezone.isNullOrBlank()) put("timezone", timezone)
+            if (!country.isNullOrBlank()) put("country", country)
             if (!sdkVersion.isNullOrBlank()) put("sdkVersion", sdkVersion)
         }.toString()
 
