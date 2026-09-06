@@ -2,32 +2,46 @@
 
 Official Android SDK for NotifyMVP. Uses Kotlin Coroutines + OkHttp.
 
+[![Release](https://jitpack.io/v/aslamSk301/notify-android-sdk.svg)](https://jitpack.io/#aslamSk301/notify-android-sdk)
+
 ---
 
 ## Installation
 
-### Option A — JitPack (Recommended)
+### JitPack
 
 **Step 1:** Add JitPack to your root `settings.gradle.kts`
+
 ```kotlin
 dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
-        maven { url = uri("https://jitpack.io") }  // ← add this
+        maven { url = uri("https://jitpack.io") }
     }
 }
 ```
 
-**Step 2:** Add the SDK dependency in `app/build.gradle.kts`
+**Step 2:** Add the SDK in `app/build.gradle.kts`
+
 ```kotlin
 dependencies {
-    implementation("com.github.aslamSk301:notify-android-sdk:1.1.0")
-    // Firebase (required)
+    implementation("com.github.aslamSk301:notify-android-sdk:1.1.1")
     implementation(platform("com.google.firebase:firebase-bom:33.1.0"))
     implementation("com.google.firebase:firebase-messaging-ktx")
 }
 ```
+
+Host app must provide Firebase Messaging (the SDK uses `compileOnly`).
+
+**Publish a version:** push this repo, then tag:
+
+```bash
+git tag 1.1.1
+git push origin 1.1.1
+```
+
+Open [jitpack.io/#aslamSk301/notify-android-sdk](https://jitpack.io/#aslamSk301/notify-android-sdk) and wait for the green build. Use the same tag as `version` in `notifymvp/build.gradle.kts`.
 
 ---
 
