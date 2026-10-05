@@ -5,7 +5,7 @@ plugins {
 }
 
 group   = "com.github.aslamSk301"
-version = "1.1.4"
+version = "1.1.5"
 
 android {
     namespace   = "com.notifymvp.sdk"

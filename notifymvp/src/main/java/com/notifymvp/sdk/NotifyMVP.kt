@@ -284,7 +284,7 @@ object NotifyMVP {
         if (!_initialized) return
         _fcmToken = newToken
         val topics = registerWithBackend(newToken)
-        if (subscriptionStatus == "subscribed") {
+        if (_optedIn) {
             autoSubscribeSystemTopics(topics)
         }
     }
@@ -318,7 +318,10 @@ object NotifyMVP {
             }
 
             val topics = registerWithBackend(_fcmToken ?: token)
-            if (subscriptionStatus == "subscribed") {
+            // FCM topic membership does not depend on the notification permission
+            // dialog. Android 13 asks for that permission after Application.onCreate,
+            // so waiting for "granted" left the device off every topic.
+            if (_optedIn && !_fcmToken.isNullOrBlank()) {
                 autoSubscribeSystemTopics(topics)
             }
 
