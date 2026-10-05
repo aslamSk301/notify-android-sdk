@@ -77,7 +77,7 @@ class NotifyMvpMessagingService : FirebaseMessagingService() {
         // Show system heads-up notification (high-priority pop-up / rich Big Picture)
         if (title.isNotBlank()) {
             serviceScope.launch {
-                showSystemHeadsUpNotification(title, body, data, notif?.imageUrl)
+                showSystemHeadsUpNotification(title, body, data, notif?.imageUrl?.toString())
             }
         }
     }
