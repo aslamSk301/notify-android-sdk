@@ -39,6 +39,8 @@ internal class NotifyHttpClient(
     /**
      * POST /api/device/register
      * Throws [NotifyException] on failure after all retries exhausted.
+     *
+     * @return system topic names from `data.topics` (empty if the server omitted them)
      */
     @Throws(NotifyException::class)
     suspend fun registerDevice(
@@ -57,7 +59,7 @@ internal class NotifyHttpClient(
         permissionStatus: String = "unknown",
         optedIn: Boolean = true,
         externalUserId: String? = null,
-    ) {
+    ): List<String> {
         val body = JSONObject().apply {
             put("appId", appId)
             put("apiKey", apiKey)
@@ -76,7 +78,8 @@ internal class NotifyHttpClient(
             if (!sdkVersion.isNullOrBlank()) put("sdkVersion", sdkVersion)
         }.toString()
 
-        postWithRetry(config.registerEndpoint, body, "registerDevice")
+        val json = postWithRetry(config.registerEndpoint, body, "registerDevice")
+        return extractTopicNames(json)
     }
 
     /**
@@ -217,6 +220,22 @@ internal class NotifyHttpClient(
         }
 
         return json
+    }
+
+    /** Register response: `{ data: { topics: ["all_…", …] } }`. */
+    private fun extractTopicNames(json: JSONObject): List<String> {
+        val data = json.optJSONObject("data")
+        val arr = when {
+            data != null && data.has("topics") -> data.optJSONArray("topics")
+            else -> json.optJSONArray("topics")
+        } ?: return emptyList()
+
+        val names = ArrayList<String>(arr.length())
+        for (i in 0 until arr.length()) {
+            val name = arr.optString(i).trim()
+            if (name.isNotEmpty()) names.add(name)
+        }
+        return names
     }
 }
 

@@ -5,6 +5,7 @@ import android.content.Intent
 import android.net.Uri
 import com.google.firebase.messaging.FirebaseMessaging
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.tasks.await
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
@@ -210,34 +211,46 @@ object NotifyMVP {
     }
 
     suspend fun subscribeToTopic(topic: String): NotifyResult {
-        checkInitialized()
-        val token = _fcmToken ?: return NotifyResult.Failure("Not registered yet")
+        if (!checkInitialized()) return NotifyResult.Failure("NotifyMVP is not initialized.")
+        val name = topic.trim()
+        if (name.isEmpty()) return NotifyResult.Failure("Topic name is empty")
         return try {
-            httpClient!!.subscribeToTopic(token, topic)
-            logger?.info("Subscribed to topic: $topic")
+            FirebaseMessaging.getInstance().subscribeToTopic(name).await()
+            logger?.info("Subscribed to Firebase topic: $name")
+            val token = _fcmToken
+            if (!token.isNullOrBlank()) {
+                try {
+                    httpClient!!.subscribeToTopic(token, name)
+                } catch (e: Exception) {
+                    logger?.warn("Backend topic sync failed (non-fatal): ${e.message}")
+                }
+            }
             NotifyResult.Success()
-        } catch (e: NotifyException) {
+        } catch (e: Exception) {
             logger?.error("Subscribe failed: ${e.message}")
             NotifyResult.Failure(e.message ?: "Subscribe failed")
-        } catch (e: Exception) {
-            logger?.error("Subscribe error", e)
-            NotifyResult.Failure(e.message ?: "Unknown error")
         }
     }
 
     suspend fun unsubscribeFromTopic(topic: String): NotifyResult {
-        checkInitialized()
-        val token = _fcmToken ?: return NotifyResult.Failure("Not registered yet")
+        if (!checkInitialized()) return NotifyResult.Failure("NotifyMVP is not initialized.")
+        val name = topic.trim()
+        if (name.isEmpty()) return NotifyResult.Failure("Topic name is empty")
         return try {
-            httpClient!!.unsubscribeFromTopic(token, topic)
-            logger?.info("Unsubscribed from topic: $topic")
+            FirebaseMessaging.getInstance().unsubscribeFromTopic(name).await()
+            logger?.info("Unsubscribed from Firebase topic: $name")
+            val token = _fcmToken
+            if (!token.isNullOrBlank()) {
+                try {
+                    httpClient!!.unsubscribeFromTopic(token, name)
+                } catch (e: Exception) {
+                    logger?.warn("Backend unsub sync failed (non-fatal): ${e.message}")
+                }
+            }
             NotifyResult.Success()
-        } catch (e: NotifyException) {
+        } catch (e: Exception) {
             logger?.error("Unsubscribe failed: ${e.message}")
             NotifyResult.Failure(e.message ?: "Unsubscribe failed")
-        } catch (e: Exception) {
-            logger?.error("Unsubscribe error", e)
-            NotifyResult.Failure(e.message ?: "Unknown error")
         }
     }
 
@@ -270,7 +283,10 @@ object NotifyMVP {
     internal suspend fun onTokenRefreshed(newToken: String) {
         if (!_initialized) return
         _fcmToken = newToken
-        registerWithBackend(newToken)
+        val topics = registerWithBackend(newToken)
+        if (subscriptionStatus == "subscribed") {
+            autoSubscribeSystemTopics(topics)
+        }
     }
 
     // ── Private ───────────────────────────────────────────────────────────────
@@ -301,7 +317,10 @@ object NotifyMVP {
                 logger?.warn("FCM token unavailable: ${e.message}")
             }
 
-            registerWithBackend(_fcmToken ?: token)
+            val topics = registerWithBackend(_fcmToken ?: token)
+            if (subscriptionStatus == "subscribed") {
+                autoSubscribeSystemTopics(topics)
+            }
 
             val devId = deviceInfo!!.getDeviceId()
             val ver   = deviceInfo!!.getAppVersion()
@@ -332,12 +351,33 @@ object NotifyMVP {
         }
     }
 
-    private suspend fun registerWithBackend(token: String?) {
-        val client = httpClient ?: return
-        val info   = deviceInfo ?: return
-        val cfg    = config    ?: return
+    /**
+     * Client-side FCM subscribe for system topics returned by register.
+     * Server IID subscribe can fail; this is what actually puts the device on the topic.
+     */
+    private suspend fun autoSubscribeSystemTopics(fromServer: List<String>) {
+        val appId = config?.appId?.trim().orEmpty()
+        val topics = when {
+            fromServer.isNotEmpty() -> fromServer
+            appId.isNotEmpty() -> listOf("all_$appId")
+            else -> return
+        }
+        for (topic in topics) {
+            try {
+                FirebaseMessaging.getInstance().subscribeToTopic(topic).await()
+                logger?.debug("Auto-subscribed to system topic: $topic")
+            } catch (e: Exception) {
+                logger?.warn("Auto-subscribe to $topic failed: ${e.message}")
+            }
+        }
+    }
 
-        client.registerDevice(
+    private suspend fun registerWithBackend(token: String?): List<String> {
+        val client = httpClient ?: return emptyList()
+        val info   = deviceInfo ?: return emptyList()
+        val cfg    = config    ?: return emptyList()
+
+        return client.registerDevice(
             appId = cfg.appId,
             apiKey = cfg.apiKey,
             fcmToken = token,

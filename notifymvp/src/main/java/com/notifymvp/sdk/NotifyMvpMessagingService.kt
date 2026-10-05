@@ -1,5 +1,7 @@
 package com.notifymvp.sdk
 
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
 import kotlinx.coroutines.CoroutineScope
@@ -7,6 +9,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.net.HttpURLConnection
+import java.net.URL
 
 /**
  * Firebase Messaging Service for NotifyMVP.
@@ -51,11 +56,9 @@ class NotifyMvpMessagingService : FirebaseMessagingService() {
     }
 
     /**
-     * Called when a data/notification message arrives while the app is
-     * in the FOREGROUND.
-     *
-     * Background messages are handled automatically by FCM and shown
-     * as system notifications — no code needed for those.
+     * Data + high-priority messages (including NotifyMVP rich / `notifymvp_rich=1`)
+     * are delivered here in foreground and background. The SDK posts the system
+     * notification (Big Picture, actions) so rich push works without a notification payload.
      */
     override fun onMessageReceived(remoteMessage: RemoteMessage) {
         super.onMessageReceived(remoteMessage)
@@ -66,18 +69,25 @@ class NotifyMvpMessagingService : FirebaseMessagingService() {
         val title = notif?.title ?: data["title"] ?: data["name"] ?: ""
         val body  = notif?.body  ?: data["body"]  ?: data["message"] ?: ""
 
-        NotifyMVP.loggerInternal?.debug("Foreground message: $title")
+        NotifyMVP.loggerInternal?.debug("FCM message: $title")
 
         // Deliver to app-level listener (set via NotifyMVP.setMessageListener)
         NotifyMVP.messageListenerInternal?.onMessage(title, body, data)
 
-        // Show system heads-up notification (high-priority pop-up)
+        // Show system heads-up notification (high-priority pop-up / rich Big Picture)
         if (title.isNotBlank()) {
-            showSystemHeadsUpNotification(title, body, data)
+            serviceScope.launch {
+                showSystemHeadsUpNotification(title, body, data, notif?.imageUrl)
+            }
         }
     }
 
-    private fun showSystemHeadsUpNotification(title: String, body: String, data: Map<String, String>) {
+    private suspend fun showSystemHeadsUpNotification(
+        title: String,
+        body: String,
+        data: Map<String, String>,
+        notificationImageUrl: String?,
+    ) {
         try {
             val notificationManager =
                 getSystemService(android.content.Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
@@ -115,11 +125,28 @@ class NotifyMvpMessagingService : FirebaseMessagingService() {
             val soundUri = android.media.RingtoneManager.getDefaultUri(android.media.RingtoneManager.TYPE_NOTIFICATION)
             val iconRes = resolveSmallIconRes()
 
-            val notif = androidx.core.app.NotificationCompat.Builder(this, channelId)
+            val imageUrl = data["imageUrl"]
+                ?: data["image"]
+                ?: notificationImageUrl
+            val iconUrl = data["iconUrl"] ?: data["icon"] ?: data["largeIcon"]
+
+            val bigPicture = downloadBitmap(imageUrl)
+            val largeIcon = downloadBitmap(iconUrl) ?: bigPicture
+
+            val style = if (bigPicture != null) {
+                androidx.core.app.NotificationCompat.BigPictureStyle()
+                    .bigPicture(bigPicture)
+                    .bigLargeIcon(null as Bitmap?)
+                    .setSummaryText(body)
+            } else {
+                androidx.core.app.NotificationCompat.BigTextStyle().bigText(body)
+            }
+
+            val builder = androidx.core.app.NotificationCompat.Builder(this, channelId)
                 .setSmallIcon(iconRes)
                 .setContentTitle(title)
                 .setContentText(body)
-                .setStyle(androidx.core.app.NotificationCompat.BigTextStyle().bigText(body))
+                .setStyle(style)
                 .setAutoCancel(true)
                 .setPriority(androidx.core.app.NotificationCompat.PRIORITY_MAX)
                 .setCategory(androidx.core.app.NotificationCompat.CATEGORY_MESSAGE)
@@ -127,12 +154,69 @@ class NotifyMvpMessagingService : FirebaseMessagingService() {
                 .setSound(soundUri)
                 .setVibrate(longArrayOf(0, 250, 250, 250))
                 .setVisibility(androidx.core.app.NotificationCompat.VISIBILITY_PUBLIC)
-                .apply { if (pendingIntent != null) setContentIntent(pendingIntent) }
-                .build()
 
-            notificationManager.notify(notifId, notif)
+            if (largeIcon != null) {
+                builder.setLargeIcon(largeIcon)
+            }
+            if (pendingIntent != null) {
+                builder.setContentIntent(pendingIntent)
+            }
+
+            for (action in RichPushHelper.parseActions(data)) {
+                val actionIntent = packageManager.getLaunchIntentForPackage(packageName)?.apply {
+                    flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK or
+                        android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP
+                    putExtra("notifymvp_action_id", action.id)
+                    for ((k, v) in data) putExtra(k, v)
+                    if (!launchUrl.isNullOrBlank()) putExtra("url", launchUrl)
+                }
+                val actionPending = if (actionIntent != null) {
+                    android.app.PendingIntent.getActivity(
+                        this,
+                        (notifId + action.id.hashCode()) and 0x7FFFFFFF,
+                        actionIntent,
+                        android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE,
+                    )
+                } else null
+                if (actionPending != null) {
+                    builder.addAction(
+                        androidx.core.app.NotificationCompat.Action.Builder(
+                            0,
+                            action.title,
+                            actionPending,
+                        ).build(),
+                    )
+                }
+            }
+
+            withContext(Dispatchers.Main) {
+                notificationManager.notify(notifId, builder.build())
+            }
         } catch (e: Exception) {
             NotifyMVP.loggerInternal?.error("Failed to post heads-up notification", e)
+        }
+    }
+
+    private fun downloadBitmap(urlString: String?): Bitmap? {
+        if (urlString.isNullOrBlank()) return null
+        return try {
+            val connection = (URL(urlString).openConnection() as HttpURLConnection).apply {
+                connectTimeout = 8_000
+                readTimeout = 8_000
+                instanceFollowRedirects = true
+                doInput = true
+            }
+            connection.connect()
+            if (connection.responseCode !in 200..299) {
+                connection.disconnect()
+                return null
+            }
+            connection.inputStream.use { stream ->
+                BitmapFactory.decodeStream(stream)
+            }.also { connection.disconnect() }
+        } catch (e: Exception) {
+            NotifyMVP.loggerInternal?.warn("Failed to download notification image: $urlString — ${e.message}")
+            null
         }
     }
 
@@ -146,7 +230,7 @@ class NotifyMvpMessagingService : FirebaseMessagingService() {
     }
 
     companion object {
-        const val DEFAULT_CHANNEL_ID = "notifymvp_heads_up_v4"
+        const val DEFAULT_CHANNEL_ID = "notifymvp_heads_up_channel"
 
         /**
          * Ensures high-priority NotificationChannel exists on Android 8.0+ (API 26+).

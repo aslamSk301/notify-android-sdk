@@ -11,7 +11,7 @@
         <!-- Default FCM Notification Channel ID for background notifications (Android 8.0+ / API 26+) -->
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_channel_id"
-            android:value="notifymvp_heads_up_v4" />
+            android:value="notifymvp_heads_up_channel" />
 
         <!--
             Firebase Messaging Service — handles token refresh and foreground push notifications.

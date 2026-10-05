@@ -26,7 +26,7 @@ dependencyResolutionManagement {
 
 ```kotlin
 dependencies {
-    implementation("com.github.aslamSk301:notify-android-sdk:1.1.1")
+    implementation("com.github.aslamSk301:notify-android-sdk:1.1.2")
     implementation(platform("com.google.firebase:firebase-bom:33.1.0"))
     implementation("com.google.firebase:firebase-messaging-ktx")
 }
@@ -154,6 +154,23 @@ Notification arrives (foreground)?
 NotifyMvpMessagingService.onMessageReceived()
     ↓
 NotifyMessageListener.onMessage()        ← delivered to your app
+    ↓
+BigPictureStyle if imageUrl / image present (Rich Push)
+```
+
+### Rich Push (Big Picture + actions)
+
+Send `imageUrl` (or `image`) from the dashboard / REST API. NotifyMVP server sends **data-only** rich messages (`notifymvp_rich=1`); this SDK shows **Big Picture** in foreground and background via `NotifyMvpMessagingService`. Optional `iconUrl` / `largeIcon` for the large icon. Action buttons: `data.actions` JSON array or `action1_title` / `action1_id` flat keys (up to 3).
+
+Use the same notification channel id in your app manifest: `notifymvp_heads_up_channel`.
+
+```json
+{
+  "title": "Sale",
+  "body": "50% off today",
+  "imageUrl": "https://cdn.example.com/banner.jpg",
+  "iconUrl": "https://cdn.example.com/icon.png"
+}
 ```
 
 ---
