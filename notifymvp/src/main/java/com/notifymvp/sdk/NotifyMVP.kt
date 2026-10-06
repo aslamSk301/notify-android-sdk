@@ -106,7 +106,7 @@ object NotifyMVP {
         // Register high-priority notification channel immediately (critical for Android 8.0+ / API 26+)
         NotifyMvpMessagingService.createNotificationChannel(appCtx)
 
-        logger!!.info("NotifyMVP SDK v1.1.0 initialized. appId=${config.appId}")
+        logger!!.info("NotifyMVP SDK v1.1.6 initialized. appId=${config.appId}")
 
         return if (autoRegister) registerDevice() else NotifyResult.Success()
     }
@@ -392,7 +392,7 @@ object NotifyMVP {
             language = info.getLanguage(),
             timezone = info.getTimezone(),
             country = info.getCountry().ifBlank { null },
-            sdkVersion = "1.1.0",
+            sdkVersion = "1.1.6",
             permissionStatus = _permissionStatus,
             optedIn = _optedIn,
             externalUserId = _externalUserId,

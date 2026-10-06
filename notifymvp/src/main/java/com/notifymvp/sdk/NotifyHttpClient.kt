@@ -55,7 +55,7 @@ internal class NotifyHttpClient(
         language: String? = null,
         timezone: String? = null,
         country: String? = null,
-        sdkVersion: String? = "1.1.0",
+        sdkVersion: String? = "1.1.6",
         permissionStatus: String = "unknown",
         optedIn: Boolean = true,
         externalUserId: String? = null,
@@ -111,12 +111,12 @@ internal class NotifyHttpClient(
     }
 
     /**
-     * GET /api/topics?appId=xxx&apiKey=xxx
+     * GET /api/topics/list?appId=xxx&apiKey=xxx
      * Fetch available topics from the backend.
      */
     @Throws(NotifyException::class)
     suspend fun fetchTopics(): List<NotifyTopic> = withContext(Dispatchers.IO) {
-        val url = "${config.baseUrl.trimEnd('/')}/api/topics" +
+        val url = "${config.baseUrl.trimEnd('/')}/api/topics/list" +
                   "?appId=${config.appId}&apiKey=${config.apiKey}"
 
         val request = Request.Builder()
@@ -124,7 +124,7 @@ internal class NotifyHttpClient(
             .get()
             .header("Accept", "application/json")
             .header("X-SDK-Platform", "android")
-            .header("X-SDK-Version", "1.1.0")
+            .header("X-SDK-Version", "1.1.6")
             .build()
 
         val response = client.newCall(request).execute()
@@ -195,7 +195,7 @@ internal class NotifyHttpClient(
             .header("Content-Type", "application/json")
             .header("Accept", "application/json")
             .header("X-SDK-Platform", "android")
-            .header("X-SDK-Version", "1.0.0")
+            .header("X-SDK-Version", "1.1.6")
             .build()
 
         val response = client.newCall(request).execute()
